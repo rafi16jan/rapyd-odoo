@@ -45,7 +45,7 @@ if (process.env.custom_modules !== undefined && process.env.custom_modules !== f
     }
 }
 var pipe;
-command += '-x client.pyj';
+command += ' -x client.pyj';
 pipe = 'inherit';
 if (process.argv.indexOf('--clear-cache') !== -1) {
     command = 'rm -f */*.pyj-cached && ' + command;

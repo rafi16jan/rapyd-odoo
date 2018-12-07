@@ -6,7 +6,7 @@ var fs = require('fs');
 var conf = "" +
 "default_url = http://localhost\n" +
 "port = 8069\n" +
-"client_db = local\n" +
+"client_db = local\n"
 var modules_list = '';
 var controllerst_list = '';
 try {

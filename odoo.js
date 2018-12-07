@@ -46,10 +46,15 @@ if (process.env.custom_modules !== undefined && process.env.custom_modules !== f
 }
 var pipe;
 command += ' client.pyj';
-pipe = 'pipe';
 if (process.argv.indexOf('--clear-cache') !== -1) {
     command = 'rm -f */*.pyj-cached && ' + command;
 }
-result = require('child_process').execSync(command, {cwd: __dirname, stdio: pipe, env: process.env});
-process.env.rapyd_client_js = result.toString();
-require('child_process').execSync('python python/server.py', {cwd: __dirname + '/python', stdio: pipe, env: process.env});
+result = require('child_process').execSync(command, {cwd: __dirname, stdio: 'pipe', env: process.env});
+try {
+    if (fs.existsSync(__dirname + '/python/client.js') === false) {
+        fs.writeFileSync(__dirname + '/python/client.js', result.toString());
+    }
+} catch(error) {
+    console.log(error)
+}
+require('child_process').execSync('python server.py', {cwd: __dirname + '/python', stdio: 'inherit', env: process.env});

@@ -3,15 +3,13 @@ import http
 import json
 import os
 request = http.request
-result = http.result
+response = http.response
 
-client_js = os.environ['rapyd_client_js']
-del os.environ['rapyd_client_js']
-configuration = tools.merge(configuration, {key: True if value in ['True', 'true'] else False if value in ['False', 'false'] else value for key, value in os.environ.items()})
+configuration = {key: True if value in ['True', 'true'] else False if value in ['False', 'false'] else value for key, value in os.environ.items()}
 
 #admin_password = configuration.admin_password
 
-#client_js = require('child_process').execSync(require('process').execPath + ' ./node_modules/.bin/rapydscript -p modules/ client.pyj', {'env': require('process').env}).toString()
+client_js = open(__file__.replace('server.pyc', 'client.js').replace('server.py', 'client.js'), 'r').read()#require('child_process').execSync(require('process').execPath + ' ./node_modules/.bin/rapydscript -p modules/ client.pyj', {'env': require('process').env}).toString()
 client_js = client_js.replace('{"home_view": window.localStorage.rapyd_home_view || "res.message.chat"}', json.dumps(configuration))
 client_js_time = tools.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -21,17 +19,16 @@ from cryptography.fernet import Fernet
 def encrypt(string):
     key = 'JtSYGIV4XnR0qqXJrZzaBJxcx3xeuitIZk8werZmuJw=' or configuration.crypto_key
     fernet = Fernet(key)
-    return fernet.encrypt(string)
+    return fernet.encrypt(bytes(string))
 
 def decrypt(string):
     key = 'JtSYGIV4XnR0qqXJrZzaBJxcx3xeuitIZk8werZmuJw=' or configuration.crypto_key
     fernet = Fernet(key)
-    return fernet.decrypt(string)
+    return fernet.decrypt(bytes(string))
 
 @http.route('/api/login')
 def login():
-    request.env = env
-    result.response = {'status': 'denied'}
+    response.result = {'status': 'denied'}
     request.params = tools.merge(request.params, request.query);
     params = http.parse(request.params)
     if request.params.login:
@@ -42,14 +39,14 @@ def login():
           user_id = request.env['res.users'].browse(uid)
           if user_id:
              #request.env.context.user = user_id
-             result.response = {'status': 'success'}
-             if params.authentication = True:
-                result.response.login, result.response.password = encrypt(params.login), encrypt(params.password)
-                result.response.id = uid
+             response.result = {'status': 'success'}
+             if params.authentication == True:
+                response.result['login'], response.result['password'] = encrypt(params.login), encrypt(params.password)
+                response.result['id'] = uid
                 if not params.client_js_time or params.client_js_time != client_js_time:
-                   result.response.client_js = client_js
-                   result.response.client_js_time = client_js_time
-    return result.response
+                   response.result['client_js'] = client_js
+                   response.result['client_js_time'] = client_js_time
+    return response.result
 
 @http.route('/api/browse')
 def browse():
@@ -61,10 +58,10 @@ def browse():
           values = values[0]
        elif len(values) < 1:
           values = {}
-       result.response = {'status': 'success', 'values': values}
-    return result.response
+       response.result = {'status': 'success', 'values': values}
+    return response.result
 
-@http.route('/api/search'
+@http.route('/api/search')
 def search():
     params = request.params
     if request.params:
@@ -74,8 +71,8 @@ def search():
           values = values[0]
        elif len(values) < 1:
           values = {}
-       result.response = {'status': 'success', 'values': values}
-    return result.response
+       response.result = {'status': 'success', 'values': values}
+    return response.result
 
 @http.route('/api/create')
 def search():
@@ -87,8 +84,8 @@ def search():
           values = values[0]
        elif len(values) < 1:
           values = {}
-       result.response = {'status': 'success', 'values': values}
-    return result.response
+       response.result = {'status': 'success', 'values': values}
+    return response.result
 
 @http.route('/api/write')
 def write():
@@ -100,16 +97,16 @@ def write():
           values = values[0]
        elif len(values) < 1:
           values = {}
-       result.response = {'status': 'success', 'values': values}
-    return result.response
+       response.result = {'status': 'success', 'values': values}
+    return response.result
 
 @http.route('/api/unlink')
 def unlink():
     params = request.params
     if request.params:
        record = request.env[params.model].browse(params.ids).unlink()
-       result.response = {'status': 'success'}
-    return result.response
+       response.result = {'status': 'success'}
+    return response.result
 
 @http.route('/api/methods')
 def methods():
@@ -122,9 +119,10 @@ def methods():
           values = values[0]
        elif len(values) < 1:
           values = {}
-       result.response = {'status': 'success', 'values': values}
-    return result.response
+       response.result = {'status': 'success', 'values': values}
+    return response.result
 
 app = http.app
 if __name__ == '__main__':
-   app.run()
+   from bottle import run
+   run(host='0.0.0.0')

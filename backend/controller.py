@@ -12,7 +12,7 @@ def authenticate(request, response):
        if params.encrypted == True:
           params.login, params.password = routes.decrypt(params.login), routes.decrypt(params.password)
        if not params.database:
-          from odoo.service.db import list_dbs:
+          from odoo.service.db import list_dbs
           params.database = list_dbs()[0]
        uid = http.request.session.authenticate(params.database, params.login, params.password)
        if uid:

@@ -3,78 +3,99 @@ import modules.controllers
 import orm.http as http
 from orm.models import env, setSchema
 from orm.tools import exist, configuration, merge
-from res.users import check_admin, admin_password
 
 setSchema()
 
-configuration = merge(configuration, {key: True if value in ['True', 'true'] else False if value in ['False', 'false'] else value for key, value in Object.entries(require('process').env)})
+configuration = merge(configuration, JSON.parse(require('process').env.rapyd_config_json)) #{key: True if value in ['True', 'true'] else False if value in ['False', 'false'] else value for key, value in Object.entries(require('process').env)})
 
 admin_password = configuration.admin_password
-check_admin()
 
-client_js = require('child_process').execSync(require('process').execPath + ' ./node_modules/.bin/rapydscript -p modules/ client.pyj', {'env': require('process').env}).toString()
-client_js = client_js.replace('{"home_view": window.localStorage.rapyd_home_view || "res.message.chat"}', JSON.stringify(configuration))
+client_js = require('child_process').execSync((require('process').execPath if '.exe' not in require('process').execPath else 'node') + ' server.js --client', {'env': require('process').env, 'maxBuffer': 5000 * 1024}).toString()
 client_js_time = Date().toISOString()
 
 crypto = require('crypto')
 
+login_cache = {}
+
+encrypt_cache = {}
+
 def encrypt(string):
+    old_string = string
     cipher = crypto.createCipher('aes-256-cbc', configuration.master_password)
     string = cipher.update(string, 'utf-8', 'hex')
     string += cipher.final('hex')
+    encrypt_cache[string] = old_string
     return string
 
 def decrypt(string):
+    if encrypt_cache[string]: return encrypt_cache[string]
+    encrypted_string = string
     decipher = crypto.createDecipher('aes-256-cbc', configuration.master_password)
     string = decipher.update(string, 'hex', 'utf-8')
     string += decipher.final('utf-8')
+    encrypt_cache[encrypted_string] = string
     return string
 
 http.route('/api/login',
-def (request, result, next):
+def (request, response, next):
     #request.accepts('application/json')
     request.env = env
-    result.response = {'status': 'denied'}
+    response.result = {'status': 'denied'}
     request.params = Object.assign(request.params, request.query, request.body or {});
     params = http.parse(request.params)
     if exist(request.params.login):
+       old_login = params.login
+       old_password = params.password
        if params.encrypted == True:
+          if not (params.authentication == True or params.client_js_time) and login_cache[params.login] == params.password:
+             #request.env.context.user = user_id
+             response.result = {'status': 'success'}
+             return next()
           params.login, params.password = decrypt(params.login), decrypt(params.password)
        request.env['res.users'].with_context(limit=1).search(['login', '=', params.login], ['password', '=', params.password]).then(
        def (user_id):
            if exist(user_id):
               request.env.context.user = user_id
-              result.response = {'status': 'success'}
-              if params.authentication = True:
-                 result.response.login, result.response.password = encrypt(params.login), encrypt(params.password)
-                 result.response.id = user_id.id
-                 if not exist(params.client_js_time) or params.client_js_time != client_js_time:
-                    result.response.client_js = client_js
-                    result.response.client_js_time = client_js_time
+              response.result = {'status': 'success'}
+              if params.encrypted == True:
+                 login_cache[old_login] = old_password
+              if True:
+                 response.result.login, response.result.password = encrypt(params.login), encrypt(params.password)
+                 login_cache[response.result.login] = response.result.password
+                 response.result.id = user_id.id
+                 if not params.client_js_time or params.client_js_time != client_js_time:
+                    response.result.client_js = client_js
+                    response.result.client_js_time = client_js_time
            next()
        ).catch(
        def (error):
-           console.log(error.stack)
-           result.response = {'status': 'error', 'error': error}
+           console.log(error.stack or error.message)
+           response.result = {'status': 'error', 'error': error.stack or error.message, 'error_type': error.name}
            next()
        )
     else:
        next()
 ,
 
-def (request, result, next):
-    return result.send(result.response)
+def (request, response, next):
+    return response.send(response.result)
 )
 
 http.route('/api/browse',
-def (request, result, next):
-    if result.response.status != 'success':
+def (request, response, next):
+    if response.result.status != 'success':
        next()
     params = request.params
     if exist(request.params):
-       request.env[params.model].browse(params.ids).then(
-       def (record):
-           result.response = {'status': 'success', 'values': record.values}
+       request.env[params.model].sudo(response.result.id).browse(params.ids).then(
+       def (records):
+           if params.context and params.context.no_preload:
+              non_offline_fields = [field for field in records._fields if records._fields[field].no_offline]
+              if non_offline_fields:
+                 for record in records:
+                     for field in non_offline_fields:
+                         record.values[field] = None
+           response.result = {'status': 'success', 'values': records.values}
            next()
        ).catch(
        def (error):
@@ -85,152 +106,161 @@ def (request, result, next):
        next()
 ,
 
-def (request, result, next):
-    return result.send(result.response)
+def (request, response, next):
+    return response.send(response.result)
 )
 
 http.route('/api/search',
-def (request, result, next):
-    if result.response.status != 'success':
+def (request, response, next):
+    if response.result.status != 'success':
        next()
     params = request.params
     if exist(request.params):
        options = params.options or {}
-       request.env[params.model].with_context(**options).search(*params.args).then(
-       def (record):
-           result.response = {'status': 'success', 'values': record.values}
+       request.env[params.model].sudo(response.result.id).with_context(**options).search(*params.args).then(
+       def (records):
+           non_offline_fields = [field for field in records._fields if records._fields[field].no_offline]
+           if non_offline_fields:
+              for record in records:
+                  for field in non_offline_fields:
+                      record.values[field] = None
+           response.result = {'status': 'success', 'values': records.values}
            next()
        ).catch(
        def (error):
            console.log(error)
-           result.response = {'status': 'error', 'error': error}
+           response.result = {'status': 'error', 'error': error.stack or error.message, 'error_type': error.name}
            next()
        )
     else:
        next()
 ,
 
-def (request, result, next):
-    return result.send(result.response)
+def (request, response, next):
+    return response.send(response.result)
 )
 
 http.route('/api/create',
-def (request, result, next):
-    if result.response.status != 'success':
+def (request, response, next):
+    if response.result.status != 'success':
        next()
     params = request.params
     if exist(request.params):
-       request.env[params.model].create(params.values).then(
+       request.env[params.model].sudo(response.result.id).create(params.values).then(
        def (record):
-           result.response = {'status': 'success', 'values': record.values}
+           response.result = {'status': 'success', 'values': record.values}
            next()
        ).catch(
        def (error):
            console.log(error)
-           result.response = {'status': 'error', 'error': error}
+           response.result = {'status': 'error', 'error': error.stack or error.message, 'error_type': error.name}
            next()
        )
     else:
        next()
 ,
 
-def (request, result, next):
-    return result.send(result.response)
+def (request, response, next):
+    return response.send(response.result)
 )
 
 http.route('/api/write',
-def (request, result, next):
-    if result.response.status != 'success':
+def (request, response, next):
+    if response.result.status != 'success':
        next()
     params = request.params
     if exist(request.params):
-       request.env[params.model].browse(params.ids).then(
+       request.env[params.model].sudo(response.result.id).browse(params.ids).then(
        def (record):
            record.write(params.values).then(
            def (record):
-               result.response = {'status': 'success', 'values': record.values}
+               response.result = {'status': 'success', 'values': record.values}
                next()
            )
        ).catch(
        def (error):
            console.log(error)
-           result.response = {'status': 'error', 'error': error}
+           response.result = {'status': 'error', 'error': error.stack or error.message, 'error_type': error.name}
            next()
        )
     else:
        next()
 ,
 
-def (request, result, next):
-    return result.send(result.response)
+def (request, response, next):
+    return response.send(response.result)
 )
 
 http.route('/api/unlink',
-def (request, result, next):
-    if result.response.status != 'success':
+def (request, response, next):
+    if response.result.status != 'success':
        next()
     params = request.params
     if exist(request.params):
-       request.env[params.model].browse(params.ids).then(
+       request.env[params.model].sudo(response.result.id).browse(params.ids).then(
        def (record):
            record.unlink().then(
            def ():
-               result.response = {'status': 'success'}
+               response.result = {'status': 'success'}
                next()
            )
        ).catch(
        def (error):
            console.log(error)
-           result.response = {'status': 'error', 'error': error}
+           response.result = {'status': 'error', 'error': error.stack or error.message, 'error_type': error.name}
            next()
        )
     else:
        next()
 ,
 
-def (request, result, next):
-    return result.send(result.response)
+def (request, response, next):
+    return response.send(response.result)
 )
 
 http.route('/api/methods',
-def (request, result, next):
-    if result.response.status != 'success':
+def (request, response, next):
+    if response.result.status != 'success':
        next()
     params = request.params
     if exist(request.params):
-       request.env[params.model].browse(params.ids).then(
+       request.env[params.model].sudo(response.result.id).browse(params.ids).then(
        def (record):
            args = params.args if params.args else []
            return record[params.method].apply(record, args).then(
-           def (record):
-               result.response = {'status': 'success', 'values': record.values}
+           def (result):
+               response.result = {'status': 'success', 'values': record.values}
+               if v'result instanceof env.Model' == False:
+                  response.result.method_result = result
                next()
            )
        ).catch(
        def (error):
            console.log(error)
-           result.response = {'status': 'error', 'error': error}
+           response.result = {'status': 'error', 'error': error.stack or error.message, 'error_type': error.name}
            next()
        )
     else:
        next()
 ,
 
-def (request, result, next):
-    return result.send(result.response)
+def (request, response, next):
+    return response.send(response.result)
 )
 
 controller = http.Controller()
 if not configuration.serverless:
    controller.run()
 else:
+   exports.controller = controller
+   exports.app = http.server
    serverless_route = {}
    for route in http._controllers:
        #entry = configuration.ENTRY_POINT or configuration.X_GOOGLE_ENTRY_POINT
        #if exist(entry) and route != entry:
        #   continue
-       console.log(route)
-       serverless_route[route] = def (request, result, route):
+       #console.log(route)
+       serverless_route[route] = def (request, response, route):
                             functions = []
                             (def recurse(methods):
                                  for method in methods:
@@ -244,11 +274,11 @@ else:
                                 v'if (arg instanceof Error) {throw arg;}'
                                 v'index += 1'
                                 if index < functions.length and exist(functions[index]):
-                                   console.log(functions[index].toString())
-                                   functions[index](request, result, next)
-                            console.log(functions[index].toString())
-                            functions[index](request, result, next)
-   exports.api = def (request, result):
+                                   #console.log(functions[index].toString())
+                                   functions[index](request, response, next)
+                            #console.log(functions[index].toString())
+                            functions[index](request, response, next)
+   exports.api = def (request, response):
                      path = request.path
                      console.log(path)
                      routing = '/api/'+path.split('/')[1]
@@ -260,6 +290,6 @@ else:
                                return path
                             return def (): return path.slice(5)
                         })
-                        route(request, result, routing)
+                        route(request, response, routing)
                      else:
-                        result.send({'status': 'error', 'error': {'message': 'URL not found'}})
+                        response.send({'status': 'error', 'error': {'message': 'URL not found'}})

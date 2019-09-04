@@ -1,7 +1,7 @@
 import orm.models as models
 import orm.tools as tools
 
-def server(method, write=True, iterate=True):
+def nonasync_server(method):
     def wrap():
         v'var self = this'
         args = Array.prototype.slice.call(arguments)
@@ -19,8 +19,8 @@ def server(method, write=True, iterate=True):
               )
            self[method.name] = method
            result = self[method.name].apply(self, args)
-           if write and v'result instanceof models.Model' == True:
-              result = result.write()
+           #if write and v'result instanceof models.Model' == True:
+           #   result = result.write()
            if tools.exist(result) and type(result) == Promise:
               return result
            return Promise(
@@ -32,25 +32,31 @@ def server(method, write=True, iterate=True):
            )
         return tools.ajax('post', 'json', tools.configuration.url + '/api/methods', {'login': models.env.user.login, 'password': models.env.user.password, 'encrypted': True, 'model': self._name, 'ids': self.ids, 'method': method.name, 'args': args}, self._context).then(
         def (result):
+            if result.error:
+               tools.configuration.exception(new tools.exceptions.ServerError(result.error, result.error_type))
             self.values = result.values
             context = self._context
-            self.env[self._name].with_context(**context).browse(self.ids)
+            #self.env[self._name].with_context(**context).browse(self.ids)
+            if 'method_result' in result:
+               return result.method_result
             return self
         ).catch(
         def (error):
-            console.log(error)
-            return Exception("There are some error")
+            #console.log(error)
+            #return Exception("There are some error")
+            raise error
         )
     return wrap
 
-def client(method, write=True, iterate=True):
+def nonasync_client(method):
     def wrap():
         v'var self = this'
+        args = Array.prototype.slice.call(arguments)
         if not tools.configuration.client:
            if self.length > 1:
               return self.queue(
               def (record, next):
-                  return record[method.name]().then(
+                  return record[method.name].apply(record, args).then(
                   def (value):
                       if tools.exist(value):
                          return value
@@ -59,9 +65,9 @@ def client(method, write=True, iterate=True):
                   )
               )
            self[method.name] = method
-           result = self[method.name]()
-           if write and v'result instanceof models.Model' == True: 
-              result = result.write()
+           result = self[method.name].apply(self, args)
+           #if write and v'result instanceof models.Model' == True: 
+           #   result = result.write()
            if tools.exist(result) and type(result) == Promise:
               return result
            return Promise(
@@ -71,29 +77,34 @@ def client(method, write=True, iterate=True):
                except Exception as error:
                    reject(error)
            )
-        return tools.ajax('post', 'json', tools.configuration.url + '/api/methods', {'login': models.env.user.login, 'password': models.env.user.password, 'encrypted': True, 'model': self._name, 'ids': self.ids, 'method': method.name}, self._context).then(
+        return tools.ajax('post', 'json', tools.configuration.url + '/api/methods', {'login': models.env.user.login, 'password': models.env.user.password, 'encrypted': True, 'model': self._name, 'ids': self.ids, 'method': method.name, 'args': args}, self._context).then(
         def (result):
+            if result.error:
+               tools.configuration.exception(new tools.exceptions.ServerError(result.error, result.error_type))
             self.values = result.values
             context = self._context
-            self.env[self._name].with_context(**context).browse(self.ids)
+            #self.env[self._name].with_context(**context).browse(self.ids)
+            if 'method_result' in result:
+               return result.method_result
             return self
         ).catch(
         def (error):
-            console.log(error)
+            console.error(error)
             self[method.name] = method
-            return self[method.name]()
+            return self[method.name].apply(self, args)
             #return Exception("There are some error")
         )
     return wrap
 
-def strict(method, write=True, iterate=True):
+def nonasync_strict(method):
     def wrap():
         v'var self = this'
+        args = Array.prototype.slice.call(arguments)
         if v"typeof window === 'undefined'" == True:
            if self.length > 1:
               return self.queue(
               def (record, next):
-                  return record[method.name]().then(
+                  return record[method.name].apply(record, args).then(
                   def (value):
                       if tools.exist(value):
                          return value
@@ -102,9 +113,9 @@ def strict(method, write=True, iterate=True):
                   )
               )
            self[method.name] = method
-           result = self[method.name]()
-           if write and v'result instanceof models.Model' == True: 
-              result = result.write()
+           result = self[method.name].apply(self, args)
+           #if write and v'result instanceof models.Model' == True:
+           #   result = result.write()
            if tools.exist(result) and type(result) == Promise:
               return result
            return Promise(
@@ -114,44 +125,58 @@ def strict(method, write=True, iterate=True):
                except Exception as error:
                    reject(error)
            )
-        return tools.ajax('post', 'json', tools.configuration.url + '/api/methods', {'login': models.env.user.login, 'password': models.env.user.password, 'encrypted': True, 'model': self._name, 'ids': self.ids, 'method': method.name}, self._context).then(
+        return tools.ajax('post', 'json', tools.configuration.url + '/api/methods', {'login': models.env.user.login, 'password': models.env.user.password, 'encrypted': True, 'model': self._name, 'ids': self.ids, 'method': method.name, 'args': args}, self._context).then(
         def (result):
+            if result.error:
+               tools.configuration.exception(new tools.exceptions.ServerError(result.error, result.error_type))
             self.values = result.values
             context = self._context
-            self.env[self._name].with_context(**context).browse(self.ids)
+            #self.env[self._name].with_context(**context).browse(self.ids)
+            if 'method_result' in result:
+               return result.method_result
             return self
         ).catch(
         def (error):
-            console.log(error)
-            return Exception("There are some error")
+            #console.log(error)
+            #return Exception("There are some error")
+            raise error
         )
     return wrap
+
+def server(method, **args):
+    if not method and args.async:
+       def wrap(method):
+           #if parseFloat(require('process').version.slice(1)) < 7.6: return async (nonasync_server(method))
+           return async (nonasync_server(method))
+       return wrap
+    return nonasync_server(method)
+
+def client(method, **args):
+    if not method and args.async:
+       def wrap(method):
+           #if parseFloat(require('process').version.slice(1)) < 7.6: return async (nonasync_client(method))
+           return  async (nonasync_client(method))
+       return wrap
+    return nonasync_client(method)
+
+def strict(method, **args):
+    if not method and args.async:
+       def wrap(method):
+           #if parseFloat(require('process').version.slice(1)) < 7.6: return async (nonasync_strict(method))
+           return async (nonasync_strict(method))
+       return wrap
+    return nonasync_strict(method)
 
 #if not tools.exist(tools.onchanges):
 #   tools.onchanges = {}
 
-def onchange(method, *fields):
-    method._onchange_fields = fields
-    def wrap():
-        v'var self = this'
-        self[method.name] = method
-        result = self[method.name]()
-        if not tools.exist(result):
-           result = self
-        return result
+def onchange(*fields, **args):
+    def wrap(method):
+        method._onchange_function = True
+        method._onchange_fields = fields
+        #if parseFloat(require('process').version.slice(1)) < 7.6 and args.async: return async (method)
+        return async (method)
     return wrap
 
-def get_onchanges(self):
-    onchanges = {}
-    for key in Object.getOwnPropertyNames(self):
-        if tools.exist(self[key]) and type(self[key]) == Function and tools.exist(self[key]._onchange_fields):
-           for field in self[key]._onchange_fields:
-               if not tools.exist(onchanges[field]):
-                  onchanges[field] = []
-               onchanges[field].push(self[key].name)
-    return onchanges
-
-tools.get_onchanges = get_onchanges
-
-#I plan to make depends to listen at adapt or write, not really sure. Maybe for now I'll make it the same as onchange
-depends = onchange
+#I plan to make depends to listen at adapt or write, not really sure.
+#depends = onchange

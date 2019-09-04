@@ -1,4 +1,5 @@
 from orm.tools import exist, keys, configuration
+from ir.data import create_data
 
 configuration.port = 8069
 
@@ -41,11 +42,16 @@ class Controller():
             server.post(key, _controllers[key])
             server.get(key, _controllers[key])
         if configuration.local_app == True:
-           if configuration.serverless != True:
-              server.get('/\/(.*)?.*/', restify.plugins.serveStatic({'directory': './client', 'default': 'index.html'}))
-           else:
-              _controllers['/api/web'] = [restify.plugins.serveStatic({'directory': './client', 'default': 'index.html'})]
+           server.get('/\/(.*)?.*/', restify.plugins.serveStatic({'directory': './client/build', 'default': 'index.html'}))
+           if configuration.serverless:
+              _controllers['/api/web'] = [restify.plugins.serveStatic({'directory': './client/build', 'default': 'index.html'})]
 
     def run(self):
-        console.log('Running on port ' + configuration.port)
-        server.listen(configuration.port)
+        if require('process').env.PORT: configuration.port = require('process').env.PORT
+        create_data().then(
+        def ():
+            console.log('Running on port ' + configuration.port)
+            server.listen(configuration.port)
+        ).then(
+        def (error): console.error(error)
+        )

@@ -1,17 +1,31 @@
 import modules.modules
 import orm.models as models
+import orm.exceptions as exceptions
 import orm.tools as tools
 from orm.pouchdb import db #Whoever criticize me about this doesn't know this is local db object not the server's
-from res.users import check_admin
+from ir.data import data, create_data
 
-check_admin()
+tools.exceptions = exceptions
+
+models.setSchema()
 
 #tools.configuration.client = True
 tools.configuration.url = "http://localhost:8069"
 tools.configuration.home_view = window.localStorage.rapyd_home_view or 'res.message.chat'
-configuration = v'{"home_view": window.localStorage.rapyd_home_view || "res.message.chat"}'
+configuration = v'{"home_view":window.localStorage.rapyd_home_view||"res.message.chat"}'
 configuration.client = tools.configuration.client
 tools.configuration = Object.assign(tools.configuration, configuration)
+
+#if not tools.configuration.client:
+def restrict_menus():
+    return models.env['res.users.menu'].search(['user_id', '=', models.env.user.id]).then(
+    def (menu_ids):
+        for menu_id in menu_ids:
+            for menu in tools.menu:
+                if menu != menu_id.menu: del tools.menu[menu]
+    )
+data.push(restrict_menus)
+tools.create_data = create_data
 
 for key in tools.menu:
     if tools.exist(tools.menu[key].parent):

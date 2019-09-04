@@ -5,7 +5,8 @@ if not tools.exist(tools.menu):
    tools.menu = {}
 
 menu = {}
-menu.add = def add(args): 
+menu.add = def add(args, **kwargs):
+               args = tools.merge(args, tools.copy(kwargs))
                if 'id' in args and 'string' in args:
                   if args.id in tools.menu:
                      return
@@ -23,7 +24,8 @@ if not tools.exist(tools.view):
    tools.view = {}
 
 view = {}
-view.add = def add(args):
+view.add = def add(args, **kwargs):
+               args = tools.merge(args, tools.copy(kwargs))
                if 'model' in args and 'mode' in args and 'arch' in args:
                   if args.model not in schemas:
                      return
@@ -41,6 +43,12 @@ view.add = def add(args):
                      tools.view[args.model].custom_init[args.model + '.' + args.mode] = args.init
                   tools.view[args.model][args.mode] = args.arch
                   tools.view[args.model].string = args.string
+                  if not tools.view[args.model].actions:
+                     tools.view[args.model].actions = {}
+                  if args.action: tools.view[args.model].actions[args.mode] = args.action
+                  if not tools.view[args.model].contexts:
+                     tools.view[args.model].contexts = {}
+                  if args.context: tools.view[args.model].contexts[args.mode] = args.context
 
 tools.configuration.material_theme = 'theme-teal'
 tools.configuration.custom_navbar = '#875a7b'

@@ -6,7 +6,7 @@ from . import routes
 
 def authenticate(request, response):
     response.result = {'status': 'denied'}
-    if getattr(request, query): request.params = tools.merge(request.params, request.query);
+    #if getattr(request, 'query'): request.params = tools.merge(request.params, request.query);
     params = tools.parse(request.params)
     if request.params.login:
        if params.encrypted == True:

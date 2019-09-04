@@ -1,16 +1,24 @@
 from . import tools
-from cryptography.fernet import Fernet
+import subprocess
+
+Fernet = None
+try:
+    from cryptography.fernet import Fernet
+except:
+    pass
 
 client_js = subprocess.check_output(['node', __file__.replace('server.pyc', 'odoo.js').replace('server.py', 'odoo.js')])
 configuration = json.loads(open(__file__.replace('server.pyc', 'config.json').replace('server.py', 'config.json'), 'r').read())
 client_js_time = tools.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 def encrypt(string):
+    if not Fernet: return string
     key = 'JtSYGIV4XnR0qqXJrZzaBJxcx3xeuitIZk8werZmuJw=' or configuration.crypto_key
     fernet = Fernet(key)
     return fernet.encrypt(bytes(string))
 
 def decrypt(string):
+    if not Fernet: return string
     key = 'JtSYGIV4XnR0qqXJrZzaBJxcx3xeuitIZk8werZmuJw=' or configuration.crypto_key
     fernet = Fernet(key)
     return fernet.decrypt(bytes(string))

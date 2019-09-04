@@ -7,8 +7,8 @@ try:
 except:
     pass
 
-client_js = subprocess.check_output(['node', __file__.replace('server.pyc', 'odoo.js').replace('server.py', 'odoo.js')])
-configuration = json.loads(open(__file__.replace('server.pyc', 'config.json').replace('server.py', 'config.json'), 'r').read())
+client_js = subprocess.check_output(['node', __file__.replace('routes.pyc', 'odoo.js').replace('routes.py', 'odoo.js')])
+configuration = json.loads(open(__file__.replace('routes.pyc', 'config.json').replace('routes.py', 'config.json'), 'r').read())
 client_js_time = tools.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 def encrypt(string):

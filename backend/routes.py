@@ -8,19 +8,19 @@ try:
 except:
     pass
 
-client_js = subprocess.check_output(['node', __file__.replace('routes.pyc', 'odoo.js').replace('routes.py', 'odoo.js')])
-configuration = json.loads(open(__file__.replace('routes.pyc', 'config.json').replace('routes.py', 'config.json'), 'r').read())
+client_js = subprocess.check_output(['node', __file__.replace('routes.pyc', 'client.js').replace('routes.py', 'client.js')])
+configuration = {} #json.loads(open(__file__.replace('routes.pyc', 'config.json').replace('routes.py', 'config.json'), 'r').read())
 client_js_time = tools.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 def encrypt(string):
     if not Fernet: return string
-    key = 'JtSYGIV4XnR0qqXJrZzaBJxcx3xeuitIZk8werZmuJw=' or configuration.crypto_key
+    key = 'JtSYGIV4XnR0qqXJrZzaBJxcx3xeuitIZk8werZmuJw=' or configuration.get('crypto_key')
     fernet = Fernet(key)
     return fernet.encrypt(bytes(string))
 
 def decrypt(string):
     if not Fernet: return string
-    key = 'JtSYGIV4XnR0qqXJrZzaBJxcx3xeuitIZk8werZmuJw=' or configuration.crypto_key
+    key = 'JtSYGIV4XnR0qqXJrZzaBJxcx3xeuitIZk8werZmuJw=' or configuration.get('crypto_key')
     fernet = Fernet(key)
     return fernet.decrypt(bytes(string))
 

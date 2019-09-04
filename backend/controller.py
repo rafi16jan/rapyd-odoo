@@ -26,13 +26,18 @@ def authenticate(request, response):
                 if not params.client_js_time or params.client_js_time != routes.client_js_time:
                    response.result['client_js'] = routes.client_js
                    response.result['client_js_time'] = routes.client_js_time
-    return response.result  
+    return response.result
+
+def iter_params(self):
+    for key in dir(self):
+        if key[0] != '_': yield key
 
 class Api(http.Controller):
 
     @http.route('/api/login', type='http', auth='none', csrf=False)
     @serialize_exception
     def login(self, **kwargs):
+        kwargs['__iter__'] = iter_params
         params = type('Params', tuple(), kwargs)()
         request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
         response = type('Response', tuple(), {'result': {}})()
@@ -42,6 +47,7 @@ class Api(http.Controller):
 
     @http.route('/api/browse', type='http', auth='none', csrf=False)
     def browse(self, **kwargs):
+        kwargs['__iter__'] = iter_params
         params = type('Params', tuple(), kwargs)()
         request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
         response = type('Response', tuple(), {'result': {}})()
@@ -53,6 +59,7 @@ class Api(http.Controller):
     @http.route('/api/search', type='http', auth='none', csrf=False)
     @serialize_exception
     def search(self, **kwargs):
+        kwargs['__iter__'] = iter_params
         params = type('Params', tuple(), kwargs)()
         request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
         response = type('Response', tuple(), {'result': {}})()
@@ -64,6 +71,7 @@ class Api(http.Controller):
     @http.route('/api/create', type='http', auth='none', csrf=False)
     @serialize_exception
     def create(self, **kwargs):
+        kwargs['__iter__'] = iter_params
         params = type('Params', tuple(), kwargs)()
         request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
         response = type('Response', tuple(), {'result': {}})()
@@ -75,6 +83,7 @@ class Api(http.Controller):
     @http.route('/api/write', type='http', auth='none', csrf=False)
     @serialize_exception
     def write(self, **kwargs):
+        kwargs['__iter__'] = iter_params
         params = type('Params', tuple(), kwargs)()
         request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
         response = type('Response', tuple(), {'result': {}})()
@@ -86,6 +95,7 @@ class Api(http.Controller):
     @http.route('/api/unlink', type='http', auth='none', csrf=False)
     @serialize_exception
     def unlink(self, **kwargs):
+        kwargs['__iter__'] = iter_params
         params = type('Params', tuple(), kwargs)()
         request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
         response = type('Response', tuple(), {'result': {}})()
@@ -97,6 +107,7 @@ class Api(http.Controller):
     @http.route('/api/methods', type='http', auth='none', csrf=False)
     @serialize_exception
     def methods(self, **kwargs):
+        kwargs['__iter__'] = iter_params
         params = type('Params', tuple(), kwargs)()
         request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
         response = type('Response', tuple(), {'result': {}})()

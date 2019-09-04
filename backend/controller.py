@@ -33,18 +33,18 @@ class Api(http.Controller):
     @http.route('/api/login', type='http', auth='none', csrf=False)
     @serialize_exception
     def login(self, **kwargs):
-        params = type('Params', (,), kwargs)()
-        request = type('Request', (,), {'env': http.request.env, 'params': params})()
-        response = type('Response', (,), {'result': {}})()
+        params = type('Params', tuple(), kwargs)()
+        request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
+        response = type('Response', tuple(), {'result': {}})()
         authenticate(request, response)
         if response.result.get('status') != 'success': return http.request.make_response(json(response.result), [('Access-Control-Allow-Origin', '*')])
         return http.request.make_response(json(response.result), [('Access-Control-Allow-Origin', '*')])
 
     @http.route('/api/browse', type='http', auth='none', csrf=False)
     def browse(self, **kwargs):
-        params = type('Params', (,), kwargs)()
-        request = type('Request', (,), {'env': http.request.env, 'params': params})()
-        response = type('Response', (,), {'result': {}})()
+        params = type('Params', tuple(), kwargs)()
+        request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
+        response = type('Response', tuple(), {'result': {}})()
         authenticate(request, response)
         if response.result.get('status') != 'success': return http.request.make_response(json(response.result), [('Access-Control-Allow-Origin', '*')])
         routes.browse(request, response)
@@ -53,9 +53,9 @@ class Api(http.Controller):
     @http.route('/api/search', type='http', auth='none', csrf=False)
     @serialize_exception
     def search(self, **kwargs):
-        params = type('Params', (,), kwargs)()
-        request = type('Request', (,), {'env': http.request.env, 'params': params})()
-        response = type('Response', (,), {'result': {}})()
+        params = type('Params', tuple(), kwargs)()
+        request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
+        response = type('Response', tuple(), {'result': {}})()
         authenticate(request, response)
         if response.result.get('status') != 'success': return http.request.make_response(json(response.result), [('Access-Control-Allow-Origin', '*')])
         routes.search(request, response)
@@ -64,9 +64,9 @@ class Api(http.Controller):
     @http.route('/api/create', type='http', auth='none', csrf=False)
     @serialize_exception
     def create(self, **kwargs):
-        params = type('Params', (,), kwargs)()
-        request = type('Request', (,), {'env': http.request.env, 'params': params})()
-        response = type('Response', (,), {'result': {}})()
+        params = type('Params', tuple(), kwargs)()
+        request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
+        response = type('Response', tuple(), {'result': {}})()
         authenticate(request, response)
         if response.result.get('status') != 'success': return http.request.make_response(json(response.result), [('Access-Control-Allow-Origin', '*')])
         routes.create(request, response)
@@ -75,9 +75,9 @@ class Api(http.Controller):
     @http.route('/api/write', type='http', auth='none', csrf=False)
     @serialize_exception
     def write(self, **kwargs):
-        params = type('Params', (,), kwargs)()
-        request = type('Request', (,), {'env': http.request.env, 'params': params})()
-        response = type('Response', (,), {'result': {}})()
+        params = type('Params', tuple(), kwargs)()
+        request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
+        response = type('Response', tuple(), {'result': {}})()
         authenticate(request, response)
         if response.result.get('status') != 'success': return http.request.make_response(json(response.result), [('Access-Control-Allow-Origin', '*')])
         routes.write(request, response)
@@ -86,9 +86,9 @@ class Api(http.Controller):
     @http.route('/api/unlink', type='http', auth='none', csrf=False)
     @serialize_exception
     def unlink(self, **kwargs):
-        params = type('Params', (,), kwargs)()
-        request = type('Request', (,), {'env': http.request.env, 'params': params})()
-        response = type('Response', (,), {'result': {}})()
+        params = type('Params', tuple(), kwargs)()
+        request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
+        response = type('Response', tuple(), {'result': {}})()
         authenticate(request, response)
         if response.result.get('status') != 'success': return http.request.make_response(json(response.result), [('Access-Control-Allow-Origin', '*')])
         routes.unlink(request, response)
@@ -97,9 +97,9 @@ class Api(http.Controller):
     @http.route('/api/methods', type='http', auth='none', csrf=False)
     @serialize_exception
     def methods(self, **kwargs):
-        params = type('Params', (,), kwargs)()
-        request = type('Request', (,), {'env': http.request.env, 'params': params})()
-        response = type('Response', (,), {'result': {}})()
+        params = type('Params', tuple(), kwargs)()
+        request = type('Request', tuple(), {'env': http.request.env, 'params': params})()
+        response = type('Response', tuple(), {'result': {}})()
         authenticate(request, response)
         if response.result.get('status') != 'success': return http.request.make_response(json(response.result), [('Access-Control-Allow-Origin', '*')])
         routes.methods(request, response)

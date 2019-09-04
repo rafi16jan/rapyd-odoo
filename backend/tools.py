@@ -12,7 +12,7 @@ def merge(*args):
 def parse(params):
     for key in params:
         try:
-            setattr(params, key, json.loads(getattr(params, key))
+            setattr(params, key, json.loads(getattr(params, key)))
         except:
             pass
         try:

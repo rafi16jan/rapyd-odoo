@@ -1,20 +1,9 @@
-import tools
-import http
-import json
-import os
-request = http.request
-response = http.response
-
-configuration = {key: True if value in ['True', 'true'] else False if value in ['False', 'false'] else value for key, value in os.environ.items()}
-
-#admin_password = configuration.admin_password
-
-client_js = open(__file__.replace('server.pyc', 'client.js').replace('server.py', 'client.js'), 'r').read()#require('child_process').execSync(require('process').execPath + ' ./node_modules/.bin/rapydscript -p modules/ client.pyj', {'env': require('process').env}).toString()
-client_js = client_js.replace('{"home_view": window.localStorage.rapyd_home_view || "res.message.chat"}', json.dumps(configuration))
-client_js_time = tools.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-#crypto = require('crypto')
+from . import tools
 from cryptography.fernet import Fernet
+
+client_js = subprocess.check_output(['node', __file__.replace('server.pyc', 'odoo.js').replace('server.py', 'odoo.js')])
+configuration = json.loads(open(__file__.replace('server.pyc', 'config.json').replace('server.py', 'config.json'), 'r').read())
+client_js_time = tools.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 def encrypt(string):
     key = 'JtSYGIV4XnR0qqXJrZzaBJxcx3xeuitIZk8werZmuJw=' or configuration.crypto_key
@@ -26,11 +15,10 @@ def decrypt(string):
     fernet = Fernet(key)
     return fernet.decrypt(bytes(string))
 
-@http.route('/api/login')
-def login():
+def login(request, response):
     response.result = {'status': 'denied'}
-    request.params = tools.merge(request.params, request.query);
-    params = http.parse(request.params)
+    if getattr(request, query): request.params = tools.merge(request.params, request.query);
+    params = tools.parse(request.params)
     if request.params.login:
        if params.encrypted == True:
           params.login, params.password = decrypt(params.login), decrypt(params.password)
@@ -48,8 +36,7 @@ def login():
                    response.result['client_js_time'] = client_js_time
     return response.result
 
-@http.route('/api/browse')
-def browse():
+def browse(request, response):
     params = request.params
     if request.params:
        record = request.env[params.model].browse(params.ids)
@@ -61,8 +48,7 @@ def browse():
        response.result = {'status': 'success', 'values': values}
     return response.result
 
-@http.route('/api/search')
-def search():
+def search(request, response):
     params = request.params
     if request.params:
        record = request.env[params.model].search(params.args, **params.options)
@@ -74,12 +60,13 @@ def search():
        response.result = {'status': 'success', 'values': values}
     return response.result
 
-@http.route('/api/create')
-def search():
+def create():
     params = request.params
     if request.params:
-       record = request.env[params.model].create(params.values)
-       values = record.read(load=False)
+       values = []
+       for value in tools.each(params.values):
+           record = request.env[params.model].create(value)
+           values += record.read(load=False)
        if len(values) == 1:
           values = values[0]
        elif len(values) < 1:
@@ -87,12 +74,21 @@ def search():
        response.result = {'status': 'success', 'values': values}
     return response.result
 
-@http.route('/api/write')
-def write():
+def write(request, response):
     params = request.params
     if request.params:
-       record = request.env[params.model].browse(params.ids).write(params.values)
-       values = record.read(load=False)
+       values = []
+       if type(params.values) == list and type(params.ids) == list:
+          if len(params.value) == len(params.ids):
+             for id, value in zip(params.ids, params.values):
+                 record = request.env[params.model].browse(id).write(value)
+                 values += record.read(load=False)
+          else:
+             response.result = {'status': 'error', 'error': 'Invalid Write Operation'}
+             return response.result
+       for value in tools.each(params.values):
+           record = request.env[params.model].browse(params.ids).write(value)
+           values += record.read(load=False)
        if len(values) == 1:
           values = values[0]
        elif len(values) < 1:
@@ -100,16 +96,14 @@ def write():
        response.result = {'status': 'success', 'values': values}
     return response.result
 
-@http.route('/api/unlink')
-def unlink():
+def unlink(request, response):
     params = request.params
     if request.params:
        record = request.env[params.model].browse(params.ids).unlink()
        response.result = {'status': 'success'}
     return response.result
 
-@http.route('/api/methods')
-def methods():
+def methods(request, response):
     params = request.params
     if request.params:
        args = params.args if 'args' in params else []
@@ -121,8 +115,3 @@ def methods():
           values = {}
        response.result = {'status': 'success', 'values': values}
     return response.result
-
-app = http.app
-if __name__ == '__main__':
-   from bottle import run
-   run(host='0.0.0.0')

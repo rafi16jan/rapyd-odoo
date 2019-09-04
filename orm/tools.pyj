@@ -8,26 +8,44 @@ def keys(object, sort=False):
        return [item[0] for item in object]
     return Object.keys(object)
 
-def merge(*args):
-    #new = {}
-    #for object in args:
-    #    for key in object:
-    #        new[key] = object[key]
-    #return new
-    #This is a standard operation for merging objects, but for now we will use Object.assign
+def sort(object, key, desc=False):
+    if object.length < 2:
+       return object
+    object.sort(
+    def (a, b):
+         if desc:
+            c = a
+            d = b
+            a = d
+            b = c
+         if a[key] < b[key]:
+            return -1
+         elif a[key] > b[key]:
+            return 1
+         return 0
+    )
+    return object
+
+def merge(*args, **kwargs):
+    if kwargs.reverse: args = args.reverse()
+    args = [arg for arg in args if arg]
     target = args[0]
     for object in args[1:]:
-        target = Object.assign(target, object)
+        for key in object:
+           target[key] = object[key]
     return target
+    #target = args[0]
+    #for object in args[1:]:
+    #    target = Object.assign(target, object)
+    #return target
 
 def copy(object):
     if exist(object):
-       if type(object) == Object:
-          return {key: copy(object[key]) if exist(object[key]) and type(object[key]) in [Object, Array] else object[key] for key in object}
-       elif type(object) == Array:
-          return [copy(value) if exist(value) and type(value) in [Object, Array] else value for value in object]
+       if is_array(object):
+          return [copy(value) for value in object]
+       elif is_json(object):
+          return {key: copy(object[key]) for key in object}
     return object
-    
 
 def dict(entries):
     #This is a function to imitate python's dict function that create a dict from a key-value pair
@@ -36,6 +54,16 @@ def dict(entries):
         object[entry[0]] = entry[1]
     return object
 
+def btoa(string):
+    if v'typeof window' != 'undefined': return window.btoa(string)
+    return require('buffer').Buffer.from(string, 'binary').toString('base64')
+
+def atob(string, buffer):
+    if v'typeof window' != 'undefined': return window.atob(string)
+    result = require('buffer').Buffer.from(string, 'base64')
+    if not buffer: result = result.toString('binary')
+    return result
+
 def checkBase64(string):
     try:
        return btoa(atob(string)) == string
@@ -43,14 +71,207 @@ def checkBase64(string):
        return False
 
 def exist(object):
-    if object in ['', False, None, undefined, 0.0, {}, []]:
+    #if object in ['', False, None, undefined, 0.0, {}, []]:
+    if not object or object == {} or object == []:
        return False
-    elif v'typeof object == "object"' and v'typeof object.length == "number"':
+    elif v'typeof object === "object"' and v'typeof object.length === "number"':
        return object.length > 0
     return True
 
 def empty(object):
     return exist(object) == False
+
+def wait():
+    args = Array.prototype.slice.call(arguments)
+    if args.length == 1 and is_array(args[0]): args = args[0]
+    return Promise.all(args)
+
+def wait_exist(fn):
+    return Promise(
+    def (resolve, reject):
+        def clear(id):
+            clearInterval(id)
+            resolve();
+        interval = setInterval(
+        def ():
+            if fn(): clear(interval)
+        , 0)
+    )
+
+def max():
+    objects = Array.prototype.slice.call(arguments)
+    maximum = None
+    for object in objects:
+        if not object: continue
+        for compare in objects:
+            if not compare: continue
+            if object == compare: continue
+            if not maximum and object > compare: maximum = object
+            elif object > compare and object > maximum: maximum = object
+    return maximum
+
+def min():
+    objects = Array.prototype.slice.call(arguments)
+    minimum = None
+    for object in objects:
+        if not object: continue
+        for compare in objects:
+            if not compare: continue
+            if object == compare: continue
+            if not minimum and object < compare: minimum = object
+            elif object < compare and object < minimum: minimum = object
+    return minimum
+
+def is_array(object):
+    return Array.isArray(object)
+
+def is_json(object):
+    if v'typeof object' == 'object' and object != None:
+       if v'typeof Object.getPrototypeOf' == 'function':
+          prototype = Object.getPrototypeOf(object)
+          return prototype == Object.prototype or prototype == None
+       else:
+          return Object.prototype.toString.call(object) == '[object Object]'
+    return False
+
+def apply_domain():
+    domains = Array.prototype.slice.call(arguments)
+    results = []
+    is_or = False
+    previously_or = False
+    or_index = 1
+    or_count = 0
+    for args in domains:
+        if not args or not args.length: continue
+        if args == '|':
+           is_or = True
+           or_index = 1
+           continue
+        if args[1] == '=':
+           if args[2] != False:
+              results.push(args[0] == args[2])
+           else:
+              results.push(not exist(args[0]))
+        elif args[1] == '!=':
+             if args[2] != False:
+                results.push(args[0] != args[2])
+             else:
+                results.push(exist(args[0]))
+        elif args[1] == '>':
+             results.push(args[0] > args[2])
+        elif args[1] == '>=':
+             results.push(args[0] >= args[2])
+        elif args[1] == '<':
+             results.push(args[0] < args[2])
+        elif args[1] == '<=':
+             results.push(args[0] <= args[2])
+        elif args[1] == 'in' and is_array(args[2]):
+             results.push(args[0] in args[2])
+        elif args[1] == 'not in' and is_array(args[2]):
+             results.push(args[0] not in args[2])
+        elif args[1] == 'like':
+             results.push(args[2] in args[0])
+        elif args[1] == 'ilike':
+             results.push(str(args[2]).toLowerCase() in str(args[0]).toLowerCase())
+        if previously_or:
+           or_1 = results[-2]
+           or_2 = results[-1]
+           results.pop()
+           results.pop()
+           results.push(or_1 or or_2)
+        if or_index == 2:
+           or_index = 1
+           is_or = False
+        elif is_or:
+           or_index += 1
+           previously_or = True
+        else:
+           previously_or = False
+    return results.every(
+    def (result): return result
+    )
+
+def apply_domain_record(*domains, **kwargs):
+    record = kwargs.record
+    results = []
+    is_or = False
+    previously_or = False
+    or_index = 1
+    or_count = 0
+    for args in domains:
+        if not args or not args.length: continue
+        if args == '|':
+           is_or = True
+           or_index = 1
+           continue
+        if args[1] == '=':
+           if args[2] != False:
+              results.push(record[args[0]] == args[2])
+           else:
+              results.push(not exist(record[args[0]]))
+        elif args[1] == '!=':
+             if args[2] != False:
+                results.push(record[args[0]] != args[2])
+             else:
+                results.push(exist(record[args[0]]))
+        elif args[1] == '>':
+             results.push(record[args[0]] > args[2])
+        elif args[1] == '>=':
+             results.push(record[args[0]] >= args[2])
+        elif args[1] == '<':
+             results.push(record[args[0]] < args[2])
+        elif args[1] == '<=':
+             results.push(record[args[0]] <= args[2])
+        elif args[1] == 'in' and is_array(args[2]):
+             results.push(record[args[0]] in args[2])
+        elif args[1] == 'not in' and is_array(args[2]):
+             results.push(record[args[0]] not in args[2])
+        elif args[1] == 'like':
+             results.push(args[2] in record[args[0]])
+        elif args[1] == 'ilike':
+             results.push(str(args[2]).toLowerCase() in str(record[args[0]]).toLowerCase())
+        if previously_or:
+           or_1 = results[-2]
+           or_2 = results[-1]
+           results.pop()
+           results.pop()
+           results.push(or_1 or or_2)
+        if or_index == 2:
+           or_index = 1
+           is_or = False
+        elif is_or:
+           or_index += 1
+           previously_or = True
+        else:
+           previously_or = False
+    return results.every(
+    def (result): return result
+    )
+
+def get_onchanges(self):
+    onchanges = {}
+    for key in Object.keys(self.constructor.prototype):
+        if key in self._fields: continue
+        if self[key] and v'typeof self[key]' == 'function' and self[key]._onchange_function:
+           for field in self[key]._onchange_fields:
+               if not exist(onchanges[field]):
+                  onchanges[field] = []
+               onchanges[field].push(self[key].name)
+    return onchanges
+
+def each(arraylike):
+    if is_array(arraylike) or v'typeof arraylike.length !== "undefined"': return arraylike
+    return [arraylike]
+
+def queue(values, method):
+    v'var index = 0'
+    def next():
+        v'index += 1'
+        if index < values.length and values[index]?:
+           return method(values[index], next)
+        #return
+    result = method(values[index], next)
+    return result
 
 def create_worker(code):
     if v"typeof window === 'undefined'":
@@ -66,23 +287,237 @@ def create_worker(code):
         blob = blob.getBlob()
     return v'new Worker(URL.createObjectURL(blob))'
 
-def exception(string):
-    console.log(string)
+def exception(error):
+    console.error(error)
 
-def warning(string, offline):
+def warning(error, offline):
     #if offline == undefined:
     #   offline = False
     if offline:
        console.log('You are offline')
-    console.log(string)
+    console.error(error)
 
-array = [ρσ_list_constructor, Array]
+def pad(num, size=2):
+    s = num + ""
+    while s.length < size:
+        s = "0" + s
+    return s
+
+date = {}
+
+def format_date(object, format):
+    self = {}
+    self.selectedDateObj = object
+    formats = {
+                # hours with leading zero e.g. 03
+                'H': def (): return pad(self.selectedDateObj.getHours());,
+
+                # AM/PM
+                'K': def (): return self.selectedDateObj.getHours() > 11 ? "PM" : "AM";,
+
+                # seconds 00-59
+                'S': def (): return pad(self.selectedDateObj.getSeconds());,
+
+                # unix timestamp
+                'U': def (): return self.selectedDateObj.getTime() / 1000;,
+
+                # full year e.g. 2016
+                'Y': def (): return self.selectedDateObj.getFullYear();,
+
+                # day in month, padded (01-30)
+                'd': def (): return pad(self.formats.j());,
+
+                # hour from 1-12 (am/pm)
+                'h': def (): return self.selectedDateObj.getHours() % 12 ? self.selectedDateObj.getHours() % 12 : 12;,
+
+                # minutes;, padded with leading zero e.g. 09
+                'i': def (): return pad(self.selectedDateObj.getMinutes());,
+
+                'M': def (): return pad(self.selectedDateObj.getMinutes());,
+
+                # day in month (1-30)
+                'j': def (): return self.selectedDateObj.getDate();,
+
+                # padded month number (01-12)
+                'm': def (): return pad(self.formats.n());,
+
+                # the month number (1-12)
+                'n': def (): return self.selectedDateObj.getMonth() + 1;,
+
+                # seconds 0-59
+                's': def (): return self.selectedDateObj.getSeconds();,
+
+                # number of the day of the week
+                'w': def (): return self.selectedDateObj.getDay();,
+
+                # last two digits of year e.g. 16 for 2016
+                'y': def (): return String(self.formats.Y()).substring(2)
+    }
+    self.formats = formats
+    result = ''
+    for word in format:
+        if formats[word]:
+           word = formats[word]()
+        result += word
+    return result
+
+date.format = format_date
+
+date.now = def (): return Date()
 
 month = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+
+array = [ρσ_list_constructor, Array]
 
 configuration = {}
 configuration.client = False
 configuration.url = False
+configuration.exception = exception
+configuration.warning = warning
+configuration.ajax_load = ajax_load
+configuration.ajax_resolve = ajax_resolve
+configuration.ajax_reject = ajax_reject
+
+def query(db, type, args):
+    makeDocID = db.rel.makeDocID;
+    default_selector = {'_id': {'$gt': makeDocID({'type': type}), '$lt': makeDocID({'type': type, 'id': {}})}}
+    selectors = [] #{'_id': {'$gt': makeDocID({'type': type}), '$lt': makeDocID({'type': type, 'id': {}})}}];
+    promises = [];
+    except_ids = {};
+    index = 0;
+    for arg in args:
+        need_orm = None
+        if not arg or not arg[0] or not arg[0].length: continue
+        selectors[index] = copy(default_selector);
+        if arg[0] == 'id':
+           selectors[index]._id = {}
+           if is_array(arg[2]):
+              arg[2] = arg[2].map(
+              def (id):
+                  return makeDocID({'type': type, 'id': id})
+              )
+           else: arg[2] = makeDocID({'type': type, 'id': arg[2]})
+           arg[0] = '_id';
+        else: arg[0] = 'data.' + arg[0];
+        if not selectors[index][arg[0]]:
+           selectors[index][arg[0]] = {}
+        if arg[1] == '=':
+           if arg[2] != False: selectors[index][arg[0]]['$eq'] =  arg[2];
+           else: selectors[index][arg[0]]['$lte'] = False;
+        elif arg[1] == '!=':
+           if arg[2] != False:
+              queries = []
+              #queries.push(db.find({'selector': copy(default_selector),'fields': ['_id']}))
+              for operator in ['eq']: #, 'gt', 'lt']:
+                  selector = copy(default_selector)
+                  selector[arg[0]] = {'$' + operator: arg[2]}
+                  query = db.find({'selector': selector, 'fields': ['_id']})
+                  queries.push(query)
+              #promises.push(
+              Promise.all(queries).then(
+              def (result):
+                  #equal, greater, less = result
+                  #all, equal = result
+                  equal = result[0]
+                  for doc in equal.docs: except_ids[doc._id] = True
+                  return
+                  #ids = [doc._id for doc in equal.docs]
+                  #if not ids.length: return all
+                  #all.docs = [doc for doc in all.docs if doc._id not in ids] #[doc for doc in greater.docs if doc._id not in ids].concat(less.docs)
+                  #return all
+              )
+              #)
+           else:
+              selectors[index][arg[0]]['$gt'] = False;
+        elif arg[1] == '>': selectors[index][arg[0]]['$gt'] = v"typeof arg[2] === 'number' ? (arg[2] + 0.000000000000001) : arg[2]";
+        elif arg[1] == '>=': selectors[index][arg[0]]['$gte'] = arg[2];
+        elif arg[1] == '<': selectors[index][arg[0]]['$lt'] = arg[2];
+        elif arg[1] == '<=': selectors[index][arg[0]]['$lte'] = arg[2];
+        elif arg[1] == 'in' and is_array(arg[2]):
+           in_promises = []
+           for value in arg[2]:
+               selector = copy(default_selector)
+               selector[arg[0]] = {'$eq': value}
+               in_promises.push(db.find({'selector': selector, 'fields': ['_id']}));
+           if not arg[2].length:
+              return new Promise(
+              def (resolve, reject):
+                  return resolve([])
+              )
+           promises.push(Promise.all(in_promises).then(
+           def (results):
+               object = {'docs': []}
+               for result in results:
+                   object.docs = object.docs.concat(result.docs)
+               return object
+           ))
+        elif arg[1] == 'not in' and is_array(arg[2]):
+           [[arg[0], value] for value in arg[2]].forEach(
+           def (result):
+               field, value = result
+               queries = []
+               #queries.push(db.find({'selector': copy(default_selector),'fields': ['_id']}))
+               for operator in ['eq']: #, 'gt', 'lt']:
+                   selector = copy(default_selector)
+                   selector[field] = {'$' + operator: value}
+                   query = db.find({'selector': selector, 'fields': ['_id']})
+                   queries.push(query)
+               #promises.push(
+               Promise.all(queries).then(
+               def (result):
+                   #equal, greater, less = result
+                   #all, equal = result
+                   equal = result[0]
+                   for doc in equal.docs: except_ids[doc._id] = True
+                   return
+                   #ids = [doc._id for doc in equal.docs]
+                   #if not ids.length: return all
+                   #all.docs = [doc for doc in all.docs if doc._id not in ids] #[doc for doc in greater.docs if doc._id not in ids].concat(less.docs)
+                   #return all
+               ) #)
+           )
+        elif arg[1] == 'like':
+           #selectors[index][arg[0]]['$gte'] = arg[2];
+           #promises.push(db.search({query: arg[2], 'fields': [arg[0]], include_docs: False}));
+           need_orm = True;
+        elif arg[1] == 'ilike':
+           #selectors[index][arg[0]]['$gte'] = arg[2];
+           #promises.push(db.search({query: arg[2], 'fields': [arg[0]], include_docs: False}));
+           need_orm = True;
+        if not Object.keys(selectors[index][arg[0]]).length:
+           del selectors[index][arg[0]];
+           selectors.pop(index);
+           if not need_orm: arg.splice(0, arg.length)
+           elif arg[0] != 'id': arg[0] = arg[0][5:] #.replace('data.', '')
+           continue;
+        if not need_orm: arg.splice(0, arg.length);
+        elif arg[0] != 'id': arg[0] = arg[0][5:] #.replace('data.', '')
+        index += 1;
+    if not selectors.length and not promises.length: return 'orm_only'
+    for selector in selectors:
+        promises.push(db.find({'selector': selector, 'fields': ['_id']}))
+    return Promise.all(promises).then(
+    def (results):
+        ids = []
+        ids_map = {}
+        index = 0
+        for result in results:
+            for doc in result.docs:
+                if doc._id in except_ids: continue
+                if index == 0: ids_map[doc._id] = 1
+                elif doc._id in ids_map: ids_map[doc._id] += 1
+                if ids_map[doc._id] == results.length: ids.push(db.rel.parseDocID(doc._id).id)
+            index += 1
+        #if promises.length > 1:
+           #ids = ids.filter(
+           #def (value, index, self):
+           #    return self.indexOf(value) != index
+           #)
+        #ids = ids.map(
+        #def (id): return db.rel.parseDocID(id).id
+        #)
+        return ids
+    )
 
 v"""
 if (typeof window !== 'undefined' && typeof window.HTMLBodyElement !== 'undefined') {configuration.client = true}
@@ -741,15 +1176,15 @@ def ajax_reject(reject, xhr, opts):
 def ajax(type, dataType, url, data, opts):
     if not exist(opts):
        opts = {}
-    ajax_load(opts)
+    configuration.ajax_load(opts)
     if exist(data):
        data = parseURI(data)
     return Promise(
     def (resolve, reject):
         xhr = XMLHttpRequest()
         xhr.open(type, url, True)
-        xhr.onload = def(): ajax_resolve(resolve, this, opts)
-        xhr.onerror = def(): ajax_reject(reject, this, opts)
+        xhr.onload = def(): configuration.ajax_resolve(resolve, this, opts)
+        xhr.onerror = def(): configuration.ajax_reject(reject, this, opts)
         xhr.responseType = dataType
         xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded')
         try:

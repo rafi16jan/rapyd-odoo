@@ -378,12 +378,13 @@ configuration.ajax_load = ajax_load
 configuration.ajax_resolve = ajax_resolve
 configuration.ajax_reject = ajax_reject
 
-def query(db, type, args):
+def query(db, type, args, limit):
     makeDocID = db.rel.makeDocID;
     default_selector = {'_id': {'$gt': makeDocID({'type': type}), '$lt': makeDocID({'type': type, 'id': {}})}}
-    selectors = [] #{'_id': {'$gt': makeDocID({'type': type}), '$lt': makeDocID({'type': type, 'id': {}})}}];
-    promises = [];
-    except_ids = {};
+    selectors = [] #{'_id': {'$gt': makeDocID({'type': type}), '$lt': makeDocID({'type': type, 'id': {}})}}]
+    promises = []
+    excepts = []
+    except_ids = {}
     index = 0;
     for arg in args:
         need_orm = None
@@ -405,6 +406,10 @@ def query(db, type, args):
            if arg[2] != False: selectors[index][arg[0]]['$eq'] =  arg[2];
            else: selectors[index][arg[0]]['$lte'] = False;
         elif arg[1] == '!=':
+           if arg[0] == '_id':
+              except_ids[arg[2]] = True
+              selectors.pop(index)
+              continue
            if arg[2] != False:
               queries = []
               #queries.push(db.find({'selector': copy(default_selector),'fields': ['_id']}))
@@ -413,8 +418,7 @@ def query(db, type, args):
                   selector[arg[0]] = {'$' + operator: arg[2]}
                   query = db.find({'selector': selector, 'fields': ['_id']})
                   queries.push(query)
-              #promises.push(
-              Promise.all(queries).then(
+              excepts.push(Promise.all(queries).then(
               def (result):
                   #equal, greater, less = result
                   #all, equal = result
@@ -425,8 +429,7 @@ def query(db, type, args):
                   #if not ids.length: return all
                   #all.docs = [doc for doc in all.docs if doc._id not in ids] #[doc for doc in greater.docs if doc._id not in ids].concat(less.docs)
                   #return all
-              )
-              #)
+              ))
            else:
               selectors[index][arg[0]]['$gt'] = False;
         elif arg[1] == '>': selectors[index][arg[0]]['$gt'] = v"typeof arg[2] === 'number' ? (arg[2] + 0.000000000000001) : arg[2]";
@@ -452,6 +455,10 @@ def query(db, type, args):
                return object
            ))
         elif arg[1] == 'not in' and is_array(arg[2]):
+           if arg[0] == '_id':
+              for id in arg[2]: except_ids[id] = True
+              selectors.pop(index)
+              continue
            [[arg[0], value] for value in arg[2]].forEach(
            def (result):
                field, value = result
@@ -462,8 +469,7 @@ def query(db, type, args):
                    selector[field] = {'$' + operator: value}
                    query = db.find({'selector': selector, 'fields': ['_id']})
                    queries.push(query)
-               #promises.push(
-               Promise.all(queries).then(
+               excepts.push(Promise.all(queries).then(
                def (result):
                    #equal, greater, less = result
                    #all, equal = result
@@ -474,7 +480,7 @@ def query(db, type, args):
                    #if not ids.length: return all
                    #all.docs = [doc for doc in all.docs if doc._id not in ids] #[doc for doc in greater.docs if doc._id not in ids].concat(less.docs)
                    #return all
-               ) #)
+               ))
            )
         elif arg[1] == 'like':
            #selectors[index][arg[0]]['$gte'] = arg[2];
@@ -493,11 +499,14 @@ def query(db, type, args):
         if not need_orm: arg.splice(0, arg.length);
         elif arg[0] != 'id': arg[0] = arg[0][5:] #.replace('data.', '')
         index += 1;
-    if not selectors.length and not promises.length: return 'orm_only'
+    if not selectors.length and not promises.length:
+       promises.push(db.find({'selector': default_selector, 'fields': ['_id']}))
     for selector in selectors:
         promises.push(db.find({'selector': selector, 'fields': ['_id']}))
+    promises.push(*excepts)
     return Promise.all(promises).then(
     def (results):
+        if excepts.length: results.splice(-excepts.length)
         ids = []
         ids_map = {}
         index = 0
@@ -516,6 +525,10 @@ def query(db, type, args):
         #ids = ids.map(
         #def (id): return db.rel.parseDocID(id).id
         #)
+        length = ids.length
+        if limit:
+           ids = ids[0:limit]
+        ids._search_count = length
         return ids
     )
 

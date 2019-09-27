@@ -48,6 +48,9 @@ def login(request, response):
 def browse(request, response):
     params = request.params
     if request.params:
+       if type(params.ids) == list:
+          params.ids = [float(id) for id in params.ids]
+       else: params.ids = float(params.ids)
        record = request.env[params.model].browse(params.ids)
        values = record.read(load=False)
        if len(values) == 1:
@@ -60,6 +63,10 @@ def browse(request, response):
 def search(request, response):
     params = request.params
     if request.params:
+       for arg in params.args:
+           if request.env[params.model]._fields[arg[0]].relational:
+              if type(arg[2]) == list: arg[2] = [float(id) for id in arg[2]]
+              arg[2] = float(arg[2])
        record = request.env[params.model].search(params.args, **params.options)
        values = record.read(load=False)
        if len(values) == 1:
